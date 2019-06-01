@@ -24,7 +24,7 @@ struct huffman::node {
 
   node() = default;
 
-  explicit node(uint8_t _ch, uint16_t _index, uint64_t _count = 0)
+  node(uint8_t _ch, uint16_t _index, uint64_t _count = 0)
           : ch(_ch),
             count(_count),
             index(_index),

@@ -14,6 +14,8 @@
 #include "writer.h"
 #include "reader.h"
 
+using std::array;
+
 struct huffman {
   huffman() = delete;
 
@@ -27,10 +29,10 @@ struct huffman {
 
   static unsigned const MAX = 1u << 8u;
 
-  using frequencies = std::array<uint64_t, MAX>;
-  using leaf_pointers = std::array<uint16_t, MAX>;
-  using tree_t = std::array<node, 2 * MAX - 1>;
-  using permutation = std::array<uint8_t, MAX>;
+  using frequencies = array<uint64_t, MAX>;
+  using leaf_pointers = array<uint16_t, MAX>;
+  using tree_t = array<node, 2 * MAX - 1>;
+  using permutation = array<uint8_t, MAX>;
 
   static std::tuple<tree_t, leaf_pointers, uint64_t>
   build_tree(frequencies const& count);
