@@ -3,7 +3,7 @@
 #include "huffman.h"
 
 inline void show_usage() {
-  std::cerr << "Usage: huffman <-e/-d> <in> <out>\n";
+  std::cout << "Usage: huffman <-e/-d> <in> <out>\n";
 }
 
 int main(int argc, char const* argv[]) {
@@ -23,13 +23,13 @@ int main(int argc, char const* argv[]) {
   std::ifstream in;
   in.open(argv[2], std::ifstream::binary);
   if (!in) {
-    std::cerr << "error opening input file\n";
+    std::cout << "error opening input file\n";
     return 0;
   }
   std::ofstream out;
   out.open(argv[3], std::ofstream::binary);
   if (!out) {
-    std::cerr << "error opening output file\n";
+    std::cout << "error opening output file\n";
     return 0;
   }
   try {

@@ -9,7 +9,7 @@
 #include <istream>
 #include <ostream>
 #include <array>
-#include <utility>
+#include <tuple>
 
 #include "writer.h"
 #include "reader.h"

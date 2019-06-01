@@ -5,8 +5,8 @@
 #include <queue>
 #include <array>
 #include <tuple>
-#include <utility>
 #include <iostream>
+#include <vector>
 
 #include "huffman.h"
 #include "reader.h"
@@ -33,8 +33,8 @@ struct huffman::node {
             parent(null) {
   }
 
-  node(uint64_t _count, uint16_t _me, uint16_t _left, uint16_t _right) : count(
-          _count), index(_me), left(_left), right(_right), parent(null) {
+  node(uint64_t _count, uint16_t _index, uint16_t _left, uint16_t _right) : count(
+          _count), index(_index), left(_left), right(_right), parent(null) {
   }
 };
 
