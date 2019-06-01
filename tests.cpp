@@ -3,10 +3,12 @@
 //
 
 #include <gtest/gtest.h>
-#include "huffman.h"
-#include <string>
 #include <sstream>
 #include <algorithm>
+#include <string>
+#include <iostream>
+
+#include "huffman.h"
 
 using std::string;
 using std::stringstream;
@@ -32,13 +34,9 @@ namespace {
     assert_fail_decode(s);
   }
 
-  char random_char() {
-    return rand() % 256;
-  }
-
   string random_string(size_t n) {
     string result(n, '\0');
-    std::generate(result.begin(), result.end(), random_char);
+    std::generate(result.begin(), result.end(), rand);
     return result;
   }
 }
@@ -64,7 +62,6 @@ TEST(correctness, random) {
     test_and_assert_fail(random_string(n));
   }
   for (unsigned iters = 0; iters < 10; iters++) {
-    std::cerr << iters << "\n";
     test_and_assert_fail(random_string(rand() & ((1u << 16u) - 1)));
   }
 }
