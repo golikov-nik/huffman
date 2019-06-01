@@ -28,23 +28,21 @@ struct huffman {
   static unsigned const MAX = 1u << 8u;
 
   using frequencies = std::array<uint64_t, MAX>;
-  using leaf_pointers = std::array<node*, MAX>;
+  using leaf_pointers = std::array<uint16_t, MAX>;
+  using tree_t = std::array<node, 2 * MAX - 1>;
   using permutation = std::array<uint8_t, MAX>;
 
-  static std::tuple<node*, leaf_pointers, uint64_t>
+  static std::tuple<tree_t, leaf_pointers, uint64_t>
   build_tree(frequencies const& count);
 
-  static void dump_alphabet(node* v, writer& out);
+  static void dump_alphabet(tree_t const& root, uint16_t ptr, writer& out);
 
-  static void dump_tree(node* v, writer& out);
+  static void dump_tree(tree_t const& root, uint16_t ptr, writer& out);
 
-  static node* restore_tree(permutation const& p, reader& in, uint16_t& ptr);
+  static uint16_t restore_tree(permutation const& p, reader& in, uint16_t& ptr,
+          tree_t& tree, uint8_t& leaf_id);
 
-  static void clear_tree(node* root);
-
-  static bool is_right(node* v);
-
-  static void print_path_to_root(node* v, writer& out);
+  static void print_path_to_root(tree_t const& root, uint16_t v, writer& out);
 };
 
 

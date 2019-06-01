@@ -13,85 +13,90 @@
 #include "writer.h"
 
 struct huffman::node {
+  static uint16_t const null = -1;
+
   uint8_t ch{};
   uint64_t count;
-  node* left{};
-  node* right{};
-  node* parent{};
+  uint16_t me;
+  uint16_t left;
+  uint16_t right;
+  uint16_t parent;
 
-  node(uint8_t _ch, uint64_t _count = 0) : ch(_ch), count(_count) {
+  node() = default;
+
+  explicit node(uint8_t _ch, uint16_t _me, uint64_t _count = 0)
+          : ch(_ch),
+            count(_count),
+            me(_me),
+            left(null),
+            right(null),
+            parent(null) {
   }
 
-  node(node* _left, node* _right) : count(_left->count + _right->count),
-                                    left(_left),
-                                    right(_right) {
-    left->parent = this;
-    right->parent = this;
+  node(uint64_t _count, uint16_t _me, uint16_t _left, uint16_t _right) : count(
+          _count), me(_me), left(_left), right(_right), parent(null) {
   }
 };
 
-bool huffman::is_right(node* v) {
-  return v == v->parent->right;
-}
-
-void huffman::print_path_to_root(node* v, writer& out) {
-  if (!v->parent) {
+void huffman::print_path_to_root(tree_t const& tree, uint16_t v, writer& out) {
+  node const& cur = tree[v];
+  if (cur.parent == node::null) {
     return;
   }
-  print_path_to_root(v->parent, out);
-  out << is_right(v);
+  print_path_to_root(tree, cur.parent, out);
+  out << (tree[cur.parent].right == v);
 }
 
-std::tuple<huffman::node*, huffman::leaf_pointers, uint64_t>
+std::tuple<huffman::tree_t, huffman::leaf_pointers, uint64_t>
 huffman::build_tree(frequencies const& count) {
-  auto cmp = [](node* a, node* b) {
-    return a->count > b->count;
+  auto cmp = [](node const& a, node const& b) {
+    return a.count > b.count;
   };
-  std::priority_queue<node*, std::vector<node*>, decltype(cmp)> q(cmp);
+  std::priority_queue<node, std::vector<node>, decltype(cmp)> q(cmp);
   leaf_pointers leaves;
+  tree_t tree;
   uint8_t ch = 0;
+  uint16_t ptr = 0;
   for (auto cnt : count) {
-    node* cur = new node(ch, cnt);
-    q.push(leaves[ch++] = cur);
+    node cur(ch, ptr, cnt);
+    tree[ptr] = cur;
+    leaves[ch++] = ptr++;
+    q.push(cur);
   }
   uint64_t total = 0;
   while (q.size() > 1) {
-    node* first = q.top();
+    node first = q.top();
     q.pop();
-    node* second = q.top();
+    node second = q.top();
     q.pop();
-    node* cur = new node(first, second);
-    total += cur->count;
+    tree[first.me].parent = tree[second.me].parent = ptr;
+    node cur(first.count + second.count, ptr, first.me, second.me);
+    total += cur.count;
+    tree[ptr++] = cur;
     q.push(cur);
   }
-  return {q.top(), leaves, total};
+  return {tree, leaves, total};
 }
 
-void huffman::dump_alphabet(node* v, writer& out) {
-  if (v->left) {
-    dump_alphabet(v->left, out);
-    dump_alphabet(v->right, out);
+void huffman::dump_alphabet(tree_t const& tree, uint16_t root, writer& out) {
+  node const& cur = tree[root];
+  if (cur.left != node::null) {
+    dump_alphabet(tree, cur.left, out);
+    dump_alphabet(tree, cur.right, out);
   } else {
-    out << v->ch;
+    out << cur.ch;
   }
 }
 
-void huffman::dump_tree(node* v, writer& out) {
-  if (v->left) {
+void huffman::dump_tree(tree_t const& tree, uint16_t root, writer& out) {
+  node const& cur = tree[root];
+  if (cur.left != node::null) {
     out << false;
-    dump_tree(v->left, out);
-    dump_tree(v->right, out);
+    dump_tree(tree, cur.left, out);
+    dump_tree(tree, cur.right, out);
   } else {
     out << true;
   }
-}
-
-void huffman::clear_tree(node* root) {
-  if (root->left) {
-    clear_tree(root->left);
-    clear_tree(root->right);
-  }
-  delete root;
 }
 
 void huffman::encode(std::istream& istr, std::ostream& ostr) {
@@ -101,39 +106,42 @@ void huffman::encode(std::istream& istr, std::ostream& ostr) {
   while (in >> ch) {
     ++count[ch];
   }
-  node* root;
+  tree_t tree;
   leaf_pointers leaves;
   uint64_t length;
-  std::tie(root, leaves, length) = build_tree(count);
+  std::tie(tree, leaves, length) = build_tree(count);
+  uint16_t root = tree.size() - 1;
   length += 2 * count.size() - 1;
   writer out(ostr);
   out << static_cast<uint8_t>((reader::MAX_BITS - length % reader::MAX_BITS) %
                               reader::MAX_BITS);
-  dump_alphabet(root, out);
-  dump_tree(root, out);
+  dump_alphabet(tree, root, out);
+  dump_tree(tree, root, out);
   in.reset();
   while (in >> ch) {
-    print_path_to_root(leaves[ch], out);
+    print_path_to_root(tree, leaves[ch], out);
   }
-  clear_tree(root);
 }
 
 inline void fail_decode() {
   throw std::runtime_error("decoding failed");
 }
 
-huffman::node* huffman::restore_tree(permutation const& p, reader& in,
-        uint16_t& ptr) {
+uint16_t huffman::restore_tree(permutation const& p, reader& in, uint16_t& ptr,
+                               tree_t& tree, uint8_t& leaf_id) {
   bool leaf;
-  if (!(in >> leaf)) {
+  if (ptr == tree.size() || !(in >> leaf)) {
     fail_decode();
   }
   if (leaf) {
-    return new node(p[ptr++]);
+    tree[ptr] = node(p[leaf_id++], ptr);
+    return ptr++;
   } else {
-    node* left = restore_tree(p, in, ptr);
-    node* right = restore_tree(p, in, ptr);
-    return new node(left, right);
+    auto first = restore_tree(p, in, ptr, tree, leaf_id);
+    auto second = restore_tree(p, in, ptr, tree, leaf_id);
+    tree[ptr] = node(tree[first].count + tree[second].count, ptr, first,
+            second);
+    return ptr++;
   }
 }
 
@@ -147,28 +155,26 @@ void huffman::decode(std::istream& istr, std::ostream& ostr) {
     }
   }
   uint16_t ptr = 0;
-  node* root = restore_tree(p, in, ptr);
-  if (ptr != p.size()) {
-    clear_tree(root);
+  uint8_t leaf_id = 0;
+  tree_t tree;
+  auto root = restore_tree(p, in, ptr, tree, leaf_id);
+  if (ptr != tree.size()) {
     fail_decode();
   }
-  node* cur = root;
+  auto cur = root;
   bool right;
   writer out(ostr);
   while (in >> right) {
-    cur = right ? cur->right : cur->left;
-    if (!cur) {
-      clear_tree(root);
+    cur = right ? tree[cur].right : tree[cur].left;
+    if (cur == node::null) {
       fail_decode();
     }
-    if (!cur->left) {
-      out << cur->ch;
+    if (tree[cur].left == node::null) {
+      out << tree[cur].ch;
       cur = root;
     }
   }
   if (cur != root) {
-    clear_tree(root);
     fail_decode();
   }
-  clear_tree(root);
 }
