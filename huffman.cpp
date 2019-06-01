@@ -19,7 +19,7 @@ struct huffman::node {
   node* right{};
   node* parent{};
 
-  node(uint8_t _ch, uint64_t _count) : ch(_ch), count(_count) {
+  node(uint8_t _ch, uint64_t _count = 0) : ch(_ch), count(_count) {
   }
 
   node(node* _left, node* _right) : count(_left->count + _right->count),
@@ -67,6 +67,25 @@ huffman::build_tree(frequencies const& count) {
   return {q.top(), leaves, total};
 }
 
+void huffman::dump_alphabet(node* v, writer& out) {
+  if (v->left) {
+    dump_alphabet(v->left, out);
+    dump_alphabet(v->right, out);
+  } else {
+    out << v->ch;
+  }
+}
+
+void huffman::dump_tree(node* v, writer& out) {
+  if (v->left) {
+    out << false;
+    dump_tree(v->left, out);
+    dump_tree(v->right, out);
+  } else {
+    out << true;
+  }
+}
+
 void huffman::clear_tree(node* root) {
   if (root->left) {
     clear_tree(root->left);
@@ -75,26 +94,26 @@ void huffman::clear_tree(node* root) {
   delete root;
 }
 
-void huffman::encode(std::istream& in, std::ostream& out) {
+void huffman::encode(std::istream& istr, std::ostream& ostr) {
   frequencies count{};
-  reader rd(in);
+  reader in(istr);
   uint8_t ch;
-  while (rd >> ch) {
+  while (in >> ch) {
     ++count[ch];
   }
   node* root;
   leaf_pointers leaves;
   uint64_t length;
   std::tie(root, leaves, length) = build_tree(count);
-  writer wr(out);
-  wr << static_cast<uint8_t>((reader::MAX_BITS - length % reader::MAX_BITS) %
-                             reader::MAX_BITS);
-  for (auto cnt : count) {
-    wr << cnt;
-  }
-  rd.reset();
-  while (rd >> ch) {
-    print_path_to_root(leaves[ch], wr);
+  length += 2 * count.size() - 1;
+  writer out(ostr);
+  out << static_cast<uint8_t>((reader::MAX_BITS - length % reader::MAX_BITS) %
+                              reader::MAX_BITS);
+  dump_alphabet(root, out);
+  dump_tree(root, out);
+  in.reset();
+  while (in >> ch) {
+    print_path_to_root(leaves[ch], out);
   }
   clear_tree(root);
 }
@@ -103,33 +122,52 @@ inline void fail_decode() {
   throw std::runtime_error("decoding failed");
 }
 
-void huffman::decode(std::istream& in, std::ostream& out) {
-  frequencies count{};
-  reader rd(in);
-  rd.read_ignore_last();
-  for (auto& x : count) {
-    if (!(rd >> x)) {
+huffman::node* huffman::restore_tree(permutation const& p, reader& in,
+        uint16_t& ptr) {
+  bool leaf;
+  if (!(in >> leaf)) {
+    fail_decode();
+  }
+  if (leaf) {
+    return new node(p[ptr++]);
+  } else {
+    node* left = restore_tree(p, in, ptr);
+    node* right = restore_tree(p, in, ptr);
+    return new node(left, right);
+  }
+}
+
+void huffman::decode(std::istream& istr, std::ostream& ostr) {
+  reader in(istr);
+  in.read_ignore_last();
+  permutation p;
+  for (auto& x : p) {
+    if (!(in >> x)) {
       fail_decode();
     }
   }
-  node* root;
-  leaf_pointers leaves;
-  uint64_t total;
-  std::tie(root, leaves, total) = build_tree(count);
+  uint16_t ptr = 0;
+  node* root = restore_tree(p, in, ptr);
+  if (ptr != p.size()) {
+    clear_tree(root);
+    fail_decode();
+  }
   node* cur = root;
   bool right;
-  writer wr(out);
-  while (rd >> right) {
+  writer out(ostr);
+  while (in >> right) {
     cur = right ? cur->right : cur->left;
     if (!cur) {
+      clear_tree(root);
       fail_decode();
     }
     if (!cur->left) {
-      wr << cur->ch;
+      out << cur->ch;
       cur = root;
     }
   }
   if (cur != root) {
+    clear_tree(root);
     fail_decode();
   }
   clear_tree(root);
