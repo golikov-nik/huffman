@@ -15,36 +15,35 @@
 struct huffman::node {
   static uint16_t const null = -1;
 
-  uint8_t ch{};
+  uint8_t ch;
   uint64_t count;
-  uint16_t me;
+  uint16_t index;
   uint16_t left;
   uint16_t right;
   uint16_t parent;
 
   node() = default;
 
-  explicit node(uint8_t _ch, uint16_t _me, uint64_t _count = 0)
+  explicit node(uint8_t _ch, uint16_t _index, uint64_t _count = 0)
           : ch(_ch),
             count(_count),
-            me(_me),
+            index(_index),
             left(null),
             right(null),
             parent(null) {
   }
 
   node(uint64_t _count, uint16_t _me, uint16_t _left, uint16_t _right) : count(
-          _count), me(_me), left(_left), right(_right), parent(null) {
+          _count), index(_me), left(_left), right(_right), parent(null) {
   }
 };
 
 void huffman::print_path_to_root(tree_t const& tree, uint16_t v, writer& out) {
   node const& cur = tree[v];
-  if (cur.parent == node::null) {
-    return;
+  if (cur.parent != node::null) {
+    print_path_to_root(tree, cur.parent, out);
+    out << (tree[cur.parent].right == v);
   }
-  print_path_to_root(tree, cur.parent, out);
-  out << (tree[cur.parent].right == v);
 }
 
 std::tuple<huffman::tree_t, huffman::leaf_pointers, uint64_t>
@@ -69,8 +68,8 @@ huffman::build_tree(frequencies const& count) {
     q.pop();
     node second = q.top();
     q.pop();
-    tree[first.me].parent = tree[second.me].parent = ptr;
-    node cur(first.count + second.count, ptr, first.me, second.me);
+    tree[first.index].parent = tree[second.index].parent = ptr;
+    node cur(first.count + second.count, ptr, first.index, second.index);
     total += cur.count;
     tree[ptr++] = cur;
     q.push(cur);
@@ -135,14 +134,13 @@ uint16_t huffman::restore_tree(permutation const& p, reader& in, uint16_t& ptr,
   }
   if (leaf) {
     tree[ptr] = node(p[leaf_id++], ptr);
-    return ptr++;
   } else {
     auto first = restore_tree(p, in, ptr, tree, leaf_id);
     auto second = restore_tree(p, in, ptr, tree, leaf_id);
     tree[ptr] = node(tree[first].count + tree[second].count, ptr, first,
             second);
-    return ptr++;
   }
+  return ptr++;
 }
 
 void huffman::decode(std::istream& istr, std::ostream& ostr) {
