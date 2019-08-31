@@ -13,14 +13,14 @@
 #include "writer.h"
 
 struct huffman::node {
-  static uint16_t const null = -1;
+  static uint16_t constexpr null = -1;
 
-  uint8_t ch;
-  uint64_t count;
-  uint16_t index;
-  uint16_t left;
-  uint16_t right;
-  uint16_t parent;
+  uint8_t ch{};
+  uint64_t count{};
+  uint16_t index{};
+  uint16_t left{};
+  uint16_t right{};
+  uint16_t parent{};
 
   node() = default;
 
@@ -33,8 +33,12 @@ struct huffman::node {
             parent(null) {
   }
 
-  node(uint64_t _count, uint16_t _index, uint16_t _left, uint16_t _right) : count(
-          _count), index(_index), left(_left), right(_right), parent(null) {
+  node(uint64_t _count, uint16_t _index, uint16_t _left, uint16_t _right)
+          : count(_count),
+            index(_index),
+            left(_left),
+            right(_right),
+            parent(null) {
   }
 };
 
@@ -52,8 +56,8 @@ huffman::build_tree(frequencies const& count) {
     return a.count > b.count;
   };
   std::priority_queue<node, std::vector<node>, decltype(cmp)> q(cmp);
-  leaf_pointers leaves;
-  tree_t tree;
+  leaf_pointers leaves{};
+  tree_t tree{};
   uint8_t ch = 0;
   uint16_t ptr = 0;
   for (auto cnt : count) {
@@ -105,10 +109,7 @@ void huffman::encode(std::istream& istr, std::ostream& ostr) {
   while (in >> ch) {
     ++count[ch];
   }
-  tree_t tree;
-  leaf_pointers leaves;
-  uint64_t length;
-  std::tie(tree, leaves, length) = build_tree(count);
+  auto[tree, leaves, length] = build_tree(count);
   uint16_t root = tree.size() - 1;
   length += 2 * count.size() - 1;
   writer out(ostr);
@@ -122,13 +123,13 @@ void huffman::encode(std::istream& istr, std::ostream& ostr) {
   }
 }
 
-inline void fail_decode() {
+void fail_decode() {
   throw std::runtime_error("decoding failed");
 }
 
 uint16_t huffman::restore_tree(permutation const& p, reader& in, uint16_t& ptr,
                                tree_t& tree, uint8_t& leaf_id) {
-  bool leaf;
+  bool leaf = false;
   if (ptr == tree.size() || !(in >> leaf)) {
     fail_decode();
   }
@@ -137,8 +138,10 @@ uint16_t huffman::restore_tree(permutation const& p, reader& in, uint16_t& ptr,
   } else {
     auto first = restore_tree(p, in, ptr, tree, leaf_id);
     auto second = restore_tree(p, in, ptr, tree, leaf_id);
-    tree[ptr] = node(tree[first].count + tree[second].count, ptr, first,
-            second);
+    tree[ptr] = node(tree[first].count + tree[second].count,
+                     ptr,
+                     first,
+                     second);
   }
   return ptr++;
 }

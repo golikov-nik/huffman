@@ -31,10 +31,9 @@ bool reader::operator>>(bool& x) {
   if (size == 0) {
     return false;
   }
-  if (read_bits + ignore_last == MAX_BITS &&
-      ptr + 1 == size &&
-      in.eof()) {
-        return false;
+  auto left_ignore_last = read_bits + ignore_last == MAX_BITS;
+  if (left_ignore_last && ptr + 1 == size && in.eof()) {
+    return false;
   }
   x = buffer[ptr] & (1u << (read_bits++));
   if (read_bits == MAX_BITS) {

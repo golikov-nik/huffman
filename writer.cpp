@@ -13,7 +13,8 @@ writer& writer::operator<<(bool x) {
   byte |= (x << (have_bits++));
   if (have_bits == MAX_BITS) {
     *this << byte;
-    byte = have_bits = 0;
+    byte = 0;
+    have_bits = 0;
   }
   return *this;
 }

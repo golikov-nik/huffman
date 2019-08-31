@@ -2,9 +2,7 @@
 // Created by nigo on 30/05/19.
 //
 
-#ifndef HUFFMAN_H
-#define HUFFMAN_H
-
+#pragma once
 
 #include <istream>
 #include <ostream>
@@ -41,11 +39,9 @@ struct huffman {
 
   static void dump_tree(tree_t const& root, uint16_t ptr, writer& out);
 
-  static uint16_t restore_tree(permutation const& p, reader& in, uint16_t& ptr,
-          tree_t& tree, uint8_t& leaf_id);
+  static uint16_t
+  restore_tree(permutation const& p, reader& in, uint16_t& ptr, tree_t& tree,
+               uint8_t& leaf_id);
 
   static void print_path_to_root(tree_t const& root, uint16_t v, writer& out);
 };
-
-
-#endif //HUFFMAN_H
